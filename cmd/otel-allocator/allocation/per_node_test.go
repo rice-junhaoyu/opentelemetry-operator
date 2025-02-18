@@ -4,6 +4,7 @@
 package allocation
 
 import (
+	"k8s.io/client-go/rest"
 	"testing"
 
 	"github.com/prometheus/prometheus/model/labels"
@@ -14,6 +15,7 @@ import (
 )
 
 var loggerPerNode = logf.Log.WithName("unit-tests")
+var perNodeKubeConfig = rest.Config{}
 
 func GetTargetsWithNodeName(targets []*target.Item) (targetsWithNodeName []*target.Item) {
 	for _, item := range targets {
@@ -28,7 +30,7 @@ func GetTargetsWithNodeName(targets []*target.Item) (targetsWithNodeName []*targ
 // target that lacks node labels.
 func TestAllocationPerNode(t *testing.T) {
 	// prepare allocator with initial targets and collectors
-	s, _ := New("per-node", loggerPerNode)
+	s, _ := New("per-node", &perNodeKubeConfig, loggerPerNode)
 
 	cols := MakeNCollectors(4, 0)
 	s.SetCollectors(cols)
@@ -95,7 +97,7 @@ func TestAllocationPerNode(t *testing.T) {
 // Tests that four targets, with one of them missing node labels, are all assigned.
 func TestAllocationPerNodeUsingFallback(t *testing.T) {
 	// prepare allocator with initial targets and collectors
-	s, _ := New("per-node", loggerPerNode, WithFallbackStrategy(consistentHashingStrategyName))
+	s, _ := New("per-node", &perNodeKubeConfig, loggerPerNode, WithFallbackStrategy(consistentHashingStrategyName))
 
 	cols := MakeNCollectors(4, 0)
 	s.SetCollectors(cols)
@@ -165,7 +167,7 @@ func TestAllocationPerNodeUsingFallback(t *testing.T) {
 
 func TestTargetsWithNoCollectorsPerNode(t *testing.T) {
 	// prepare allocator with initial targets and collectors
-	c, _ := New("per-node", loggerPerNode)
+	c, _ := New("per-node", &perNodeKubeConfig, loggerPerNode)
 
 	// Adding 10 new targets
 	numItems := 10

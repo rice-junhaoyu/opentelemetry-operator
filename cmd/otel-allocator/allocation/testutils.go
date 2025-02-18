@@ -7,6 +7,7 @@ package allocation
 
 import (
 	"fmt"
+	"k8s.io/client-go/rest"
 	"strconv"
 	"testing"
 
@@ -68,9 +69,10 @@ func MakeNNewTargetsWithEmptyCollectors(n int, startingIndex int) map[string]*ta
 func RunForAllStrategies(t *testing.T, f func(t *testing.T, allocator Allocator)) {
 	allocatorNames := GetRegisteredAllocatorNames()
 	logger := logf.Log.WithName("unit-tests")
+	kubeConfig := rest.Config{}
 	for _, allocatorName := range allocatorNames {
 		t.Run(allocatorName, func(t *testing.T) {
-			allocator, err := New(allocatorName, logger)
+			allocator, err := New(allocatorName, &kubeConfig, logger)
 			require.NoError(t, err)
 			f(t, allocator)
 		})

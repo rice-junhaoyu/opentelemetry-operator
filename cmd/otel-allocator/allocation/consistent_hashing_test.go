@@ -4,10 +4,13 @@
 package allocation
 
 import (
+	"k8s.io/client-go/rest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
+
+var consistentHashingKubeConfig = rest.Config{}
 
 func TestRelativelyEvenDistribution(t *testing.T) {
 	numCols := 15
@@ -15,7 +18,7 @@ func TestRelativelyEvenDistribution(t *testing.T) {
 	cols := MakeNCollectors(numCols, 0)
 	var expectedPerCollector = float64(numItems / numCols)
 	expectedDelta := (expectedPerCollector * 1.5) - expectedPerCollector
-	c, _ := New("consistent-hashing", logger)
+	c, _ := New("consistent-hashing", &consistentHashingKubeConfig, logger)
 	c.SetCollectors(cols)
 	c.SetTargets(MakeNNewTargets(numItems, 0, 0))
 	actualTargetItems := c.TargetItems()
@@ -29,7 +32,7 @@ func TestRelativelyEvenDistribution(t *testing.T) {
 
 func TestFullReallocation(t *testing.T) {
 	cols := MakeNCollectors(10, 0)
-	c, _ := New("consistent-hashing", logger)
+	c, _ := New("consistent-hashing", &consistentHashingKubeConfig, logger)
 	c.SetCollectors(cols)
 	c.SetTargets(MakeNNewTargets(10000, 10, 0))
 	actualTargetItems := c.TargetItems()
@@ -54,7 +57,7 @@ func TestNumRemapped(t *testing.T) {
 	numFinalCols := 16
 	expectedDelta := float64((numFinalCols - numInitialCols) * (numItems / numFinalCols))
 	cols := MakeNCollectors(numInitialCols, 0)
-	c, _ := New("consistent-hashing", logger)
+	c, _ := New("consistent-hashing", &consistentHashingKubeConfig, logger)
 	c.SetCollectors(cols)
 	c.SetTargets(MakeNNewTargets(numItems, numInitialCols, 0))
 	actualTargetItems := c.TargetItems()
@@ -83,7 +86,7 @@ func TestNumRemapped(t *testing.T) {
 
 func TestTargetsWithNoCollectorsConsistentHashing(t *testing.T) {
 
-	c, _ := New("consistent-hashing", logger)
+	c, _ := New("consistent-hashing", &consistentHashingKubeConfig, logger)
 
 	// Adding 10 new targets
 	numItems := 10
