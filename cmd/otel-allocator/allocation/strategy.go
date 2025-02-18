@@ -5,6 +5,8 @@ package allocation
 
 import (
 	"fmt"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/buraksezer/consistent"
 	"github.com/go-logr/logr"
@@ -73,8 +75,16 @@ func RecordTargetsKept(targets map[string]*target.Item) {
 	TargetsRemaining.Set(float64(len(targets)))
 }
 
-func New(name string, log logr.Logger, opts ...Option) (Allocator, error) {
+func New(name string, kubeConfig *rest.Config, log logr.Logger, opts ...Option) (Allocator, error) {
 	if strategy, ok := strategies[name]; ok {
+		return newAllocator(log.WithValues("allocator", name), strategy, opts...), nil
+	}
+	if name == perZoneStrategyName {
+		k8sClient, err := kubernetes.NewForConfig(kubeConfig)
+		if err != nil {
+			return nil, fmt.Errorf("failed to create a new k8s client: %s", err)
+		}
+		strategy := newPerZoneStrategy(k8sClient)
 		return newAllocator(log.WithValues("allocator", name), strategy, opts...), nil
 	}
 	return nil, fmt.Errorf("unregistered strategy: %s", name)
