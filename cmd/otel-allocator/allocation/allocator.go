@@ -5,6 +5,7 @@ package allocation
 
 import (
 	"errors"
+	"k8s.io/client-go/kubernetes"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -68,6 +69,10 @@ func (a *allocator) SetFilter(filter Filter) {
 // SetFallbackStrategy sets the fallback strategy to use.
 func (a *allocator) SetFallbackStrategy(strategy Strategy) {
 	a.strategy.SetFallbackStrategy(strategy)
+}
+
+func (a *allocator) SetKubeClient(kubeClient kubernetes.Interface) {
+	a.strategy.SetKubeClient(kubeClient)
 }
 
 // SetTargets accepts a list of targets that will be used to make

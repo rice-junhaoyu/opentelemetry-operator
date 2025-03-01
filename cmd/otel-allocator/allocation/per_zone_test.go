@@ -19,7 +19,7 @@ import (
 var loggerPerZone = logf.Log.WithName("unit-tests")
 
 func TestAllocationPerZone(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset(
+	kubeClient := fake.NewSimpleClientset(
 		&corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "node-0",
@@ -53,8 +53,8 @@ func TestAllocationPerZone(t *testing.T) {
 			},
 		})
 
-	perZoneStrategy := newPerZoneStrategy(k8sClient)
-	perZoneAllocator := newAllocator(loggerPerZone, perZoneStrategy)
+	perZoneStrategy := newPerZoneStrategy()
+	perZoneAllocator := newAllocator(loggerPerZone, perZoneStrategy, WithKubeClient(kubeClient))
 
 	cols := MakeNCollectors(3, 0)
 	perZoneAllocator.SetCollectors(cols)
@@ -122,7 +122,7 @@ func TestAllocationPerZone(t *testing.T) {
 
 // Test with no collector in a specific zone
 func TestTargetsWithZoneDoesNotHaveCollectors(t *testing.T) {
-	k8sClient := fake.NewSimpleClientset(
+	kubeClient := fake.NewSimpleClientset(
 		&corev1.Node{
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "node-0",
@@ -148,8 +148,8 @@ func TestTargetsWithZoneDoesNotHaveCollectors(t *testing.T) {
 			},
 		})
 
-	perZoneStrategy := newPerZoneStrategy(k8sClient)
-	perZoneAllocator := newAllocator(loggerPerZone, perZoneStrategy)
+	perZoneStrategy := newPerZoneStrategy()
+	perZoneAllocator := newAllocator(loggerPerZone, perZoneStrategy, WithKubeClient(kubeClient))
 
 	cols := MakeNCollectors(2, 0)
 	perZoneAllocator.SetCollectors(cols)

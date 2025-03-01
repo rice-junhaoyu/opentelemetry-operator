@@ -5,15 +5,12 @@ package allocation
 
 import (
 	"fmt"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-
 	"github.com/buraksezer/consistent"
 	"github.com/go-logr/logr"
+	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
-
-	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
+	"k8s.io/client-go/kubernetes"
 )
 
 type AllocatorProvider func(log logr.Logger, opts ...Option) Allocator
@@ -23,6 +20,7 @@ var (
 		leastWeightedStrategyName:     newleastWeightedStrategy(),
 		consistentHashingStrategyName: newConsistentHashingStrategy(),
 		perNodeStrategyName:           newPerNodeStrategy(),
+		perZoneStrategyName:           newPerZoneStrategy(),
 	}
 
 	// TargetsPerCollector records how many targets have been assigned to each collector.
@@ -71,20 +69,18 @@ func WithFallbackStrategy(fallbackStrategy string) Option {
 	}
 }
 
+func WithKubeClient(kubeClient kubernetes.Interface) Option {
+	return func(allocator Allocator) {
+		allocator.SetKubeClient(kubeClient)
+	}
+}
+
 func RecordTargetsKept(targets map[string]*target.Item) {
 	TargetsRemaining.Set(float64(len(targets)))
 }
 
-func New(name string, kubeConfig *rest.Config, log logr.Logger, opts ...Option) (Allocator, error) {
+func New(name string, log logr.Logger, opts ...Option) (Allocator, error) {
 	if strategy, ok := strategies[name]; ok {
-		return newAllocator(log.WithValues("allocator", name), strategy, opts...), nil
-	}
-	if name == perZoneStrategyName {
-		k8sClient, err := kubernetes.NewForConfig(kubeConfig)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create a new k8s client: %s", err)
-		}
-		strategy := newPerZoneStrategy(k8sClient)
 		return newAllocator(log.WithValues("allocator", name), strategy, opts...), nil
 	}
 	return nil, fmt.Errorf("unregistered strategy: %s", name)
@@ -106,6 +102,7 @@ type Allocator interface {
 	GetTargetsForCollectorAndJob(collector string, job string) []*target.Item
 	SetFilter(filter Filter)
 	SetFallbackStrategy(strategy Strategy)
+	SetKubeClient(kubeConfig kubernetes.Interface)
 }
 
 type Strategy interface {
@@ -117,6 +114,7 @@ type Strategy interface {
 	GetName() string
 	// SetFallbackStrategy adds fallback strategy for strategies whose main allocation method can sometimes leave targets unassigned
 	SetFallbackStrategy(Strategy)
+	SetKubeClient(kubeClient kubernetes.Interface)
 }
 
 var _ consistent.Member = Collector{}

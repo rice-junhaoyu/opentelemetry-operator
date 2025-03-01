@@ -5,14 +5,11 @@ package allocation
 
 import (
 	"fmt"
-	"k8s.io/client-go/rest"
 	"reflect"
 	"testing"
 
 	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/diff"
 )
-
-var stategyTestKubeConfig = rest.Config{}
 
 func BenchmarkGetAllTargetsByCollectorAndJob(b *testing.B) {
 	var table = []struct {
@@ -30,7 +27,7 @@ func BenchmarkGetAllTargetsByCollectorAndJob(b *testing.B) {
 	}
 	for _, s := range GetRegisteredAllocatorNames() {
 		for _, v := range table {
-			a, err := New(s, &stategyTestKubeConfig, logger)
+			a, err := New(s, logger)
 			if err != nil {
 				b.Log(err)
 				b.Fail()
@@ -66,7 +63,7 @@ func Benchmark_Setting(b *testing.B) {
 
 	for _, s := range GetRegisteredAllocatorNames() {
 		for _, v := range table {
-			a, _ := New(s, &stategyTestKubeConfig, logger)
+			a, _ := New(s, logger)
 			cols := MakeNCollectors(v.numCollectors, 0)
 			targets := MakeNNewTargets(v.numTargets, v.numCollectors, 0)
 			b.Run(fmt.Sprintf("%s_num_cols_%d_num_jobs_%d", s, v.numCollectors, v.numTargets), func(b *testing.B) {

@@ -5,9 +5,9 @@ package allocation
 
 import (
 	"fmt"
-
 	"github.com/buraksezer/consistent"
 	"github.com/cespare/xxhash/v2"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 )
@@ -74,3 +74,5 @@ func (s *consistentHashingStrategy) SetCollectors(collectors map[string]*Collect
 }
 
 func (s *consistentHashingStrategy) SetFallbackStrategy(fallbackStrategy Strategy) {}
+
+func (s *consistentHashingStrategy) SetKubeClient(kubeClient kubernetes.Interface) {}

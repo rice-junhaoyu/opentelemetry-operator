@@ -5,8 +5,8 @@ package allocation
 
 import (
 	"fmt"
-
 	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
+	"k8s.io/client-go/kubernetes"
 )
 
 const perNodeStrategyName = "per-node"
@@ -28,6 +28,8 @@ func newPerNodeStrategy() Strategy {
 func (s *perNodeStrategy) SetFallbackStrategy(fallbackStrategy Strategy) {
 	s.fallbackStrategy = fallbackStrategy
 }
+
+func (s *perNodeStrategy) SetKubeClient(kubeClient kubernetes.Interface) {}
 
 func (s *perNodeStrategy) GetName() string {
 	return perNodeStrategyName

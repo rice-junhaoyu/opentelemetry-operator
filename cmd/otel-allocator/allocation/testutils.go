@@ -7,7 +7,9 @@ package allocation
 
 import (
 	"fmt"
-	"k8s.io/client-go/rest"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes/fake"
 	"strconv"
 	"testing"
 
@@ -69,10 +71,51 @@ func MakeNNewTargetsWithEmptyCollectors(n int, startingIndex int) map[string]*ta
 func RunForAllStrategies(t *testing.T, f func(t *testing.T, allocator Allocator)) {
 	allocatorNames := GetRegisteredAllocatorNames()
 	logger := logf.Log.WithName("unit-tests")
-	kubeConfig := rest.Config{}
+	kubeClient := fake.NewSimpleClientset(
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-0",
+				Labels: map[string]string{
+					corev1.LabelTopologyZone: "zone-0",
+				},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-1",
+				Labels: map[string]string{
+					corev1.LabelTopologyZone: "zone-1",
+				},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-2",
+				Labels: map[string]string{
+					corev1.LabelTopologyZone: "zone-2",
+				},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-3",
+				Labels: map[string]string{
+					corev1.LabelTopologyZone: "zone-3",
+				},
+			},
+		},
+		&corev1.Node{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: "node-4",
+				Labels: map[string]string{
+					corev1.LabelTopologyZone: "zone-4",
+				},
+			},
+		},
+	)
 	for _, allocatorName := range allocatorNames {
 		t.Run(allocatorName, func(t *testing.T) {
-			allocator, err := New(allocatorName, &kubeConfig, logger)
+			allocator, err := New(allocatorName, logger, WithKubeClient(kubeClient))
 			require.NoError(t, err)
 			f(t, allocator)
 		})

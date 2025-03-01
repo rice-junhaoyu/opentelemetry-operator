@@ -19,40 +19,40 @@ import (
 const perZoneStrategyName = "per-zone"
 const cacheTTL = 120 * time.Minute
 
-type ZonedNode struct {
-	NodeName string
-	Zone     string
+type zonedNode struct {
+	nodeName string
+	zone     string
 }
 
-type CollectorZonedNode struct {
-	ZonedNode
+type collectorZonedNode struct {
+	zonedNode
 	collector string
 }
 
-type TargetZonedNode struct {
-	ZonedNode
+type targetZonedNode struct {
+	zonedNode
 	target string
 }
 
-func collectorZonedNodeKeyFunc(collectorZonedNode interface{}) (string, error) {
-	return collectorZonedNode.(CollectorZonedNode).collector, nil
+func collectorZonedNodeKeyFunc(object interface{}) (string, error) {
+	return object.(collectorZonedNode).collector, nil
 }
 
-func targetZonedNodeKeyFunc(targetZonedNode interface{}) (string, error) {
-	return targetZonedNode.(TargetZonedNode).target, nil
+func targetZonedNodeKeyFunc(object interface{}) (string, error) {
+	return object.(targetZonedNode).target, nil
 }
 
 var _ Strategy = &perZoneStrategy{}
 
 type perZoneStrategy struct {
-	k8sClient              kubernetes.Interface
+	kubeClient             kubernetes.Interface
 	config                 consistent.Config
 	collectorToZonedNode   cache.Store
 	targetToZonedNode      cache.Store
 	consistentHasherByZone map[string]*consistent.Consistent
 }
 
-func newPerZoneStrategy(k8sClient kubernetes.Interface) Strategy {
+func newPerZoneStrategy() Strategy {
 	config := consistent.Config{
 		PartitionCount:    1061,
 		ReplicationFactor: 5,
@@ -60,7 +60,6 @@ func newPerZoneStrategy(k8sClient kubernetes.Interface) Strategy {
 		Hasher:            hasher{},
 	}
 	perZoneStrategy := &perZoneStrategy{
-		k8sClient:              k8sClient,
 		config:                 config,
 		consistentHasherByZone: make(map[string]*consistent.Consistent),
 		collectorToZonedNode:   cache.NewTTLStore(collectorZonedNodeKeyFunc, cacheTTL),
@@ -75,41 +74,41 @@ func (s *perZoneStrategy) GetCollectorForTarget(collectors map[string]*Collector
 
 	targetUrl := item.TargetURL
 	targetNodeName := item.GetNodeName()
-	targetZonedNode, exist, err := s.targetToZonedNode.GetByKey(targetUrl)
+	node, exist, err := s.targetToZonedNode.GetByKey(targetUrl)
 	if err != nil {
 		fmt.Printf("failed to retrieve target zoned node from cache: %s", err)
 	}
-	if !exist || targetZonedNode.(TargetZonedNode).ZonedNode.NodeName != item.GetNodeName() {
+	if !exist || node.(targetZonedNode).zonedNode.nodeName != item.GetNodeName() {
 		k8sNode, err := s.retrieveK8sNode(ctx, targetNodeName)
 		if err != nil {
-			fmt.Printf("err retrieving k8s node %s for target %s: %s\n", item.GetNodeName(), targetUrl, err)
+			return nil, fmt.Errorf("err retrieving k8s node %q for target %q: %s\n", item.GetNodeName(), targetUrl, err)
 		}
 		targetNodeZone, exist := k8sNode.ObjectMeta.Labels[v1.LabelTopologyZone]
 		if !exist {
-			fmt.Printf("succeeded to find the target node %s in the cluster but it doesn't support zone awareness", targetNodeName)
+			return nil, fmt.Errorf("succeeded to find the target node %s in the cluster but it doesn't support zone awareness", targetNodeName)
 		}
-		targetZonedNode = TargetZonedNode{
-			ZonedNode: ZonedNode{
-				NodeName: targetNodeName,
-				Zone:     targetNodeZone,
+		node = targetZonedNode{
+			zonedNode: zonedNode{
+				nodeName: targetNodeName,
+				zone:     targetNodeZone,
 			},
 			target: targetUrl,
 		}
-		err = s.targetToZonedNode.Add(targetZonedNode)
+		err = s.targetToZonedNode.Add(node)
 		if err != nil {
-			fmt.Printf("error adding a cache for the node and zone information that relates to target %s: %s", targetUrl, err)
+			fmt.Printf("error adding a cache for the node and zone information that relates to target %q: %s", targetUrl, err)
 		}
 	}
 
-	zonedConsistentHasher, exist := s.consistentHasherByZone[targetZonedNode.(TargetZonedNode).ZonedNode.Zone]
+	zonedConsistentHasher, exist := s.consistentHasherByZone[node.(targetZonedNode).zonedNode.zone]
 	if !exist {
-		return nil, fmt.Errorf("unknown Zone %s", targetZonedNode.(TargetZonedNode).ZonedNode.Zone)
+		return nil, fmt.Errorf("unknown zone %q", node.(targetZonedNode).zonedNode.zone)
 	}
 	member := zonedConsistentHasher.LocateKey([]byte(targetUrl))
 	collectorName := member.String()
 	collector, exist := collectors[collectorName]
 	if !exist {
-		return nil, fmt.Errorf("unknown collector %s", collectorName)
+		return nil, fmt.Errorf("unknown collector %q", collectorName)
 	}
 	return collector, nil
 }
@@ -121,39 +120,38 @@ func (s *perZoneStrategy) SetCollectors(collectors map[string]*Collector) {
 	defer cancel()
 
 	collectorsByZone := make(map[string][]string)
-	defer clear(collectorsByZone)
 
 	for _, collector := range collectors {
 		collectorNodeName := collector.NodeName
 		collectorName := collector.Name
-		collectorZonedNode, exist, err := s.collectorToZonedNode.GetByKey(collectorName)
+		node, exist, err := s.collectorToZonedNode.GetByKey(collectorName)
 		if err != nil {
 			fmt.Printf("failed to retrieve collector zoned node from cache: %s", err)
 		}
-		if !exist || collectorZonedNode.(CollectorZonedNode).ZonedNode.NodeName != collector.NodeName {
+		if !exist || node.(collectorZonedNode).zonedNode.nodeName != collector.NodeName {
 			k8sNode, err := s.retrieveK8sNode(ctx, collectorNodeName)
 			if err != nil {
-				fmt.Printf("error retrieving k8s node %s for collector %s: %s\n", collectorNodeName, collectorName, err)
+				fmt.Printf("error retrieving k8s node %q for collector %q: %s\n", collectorNodeName, collectorName, err)
 				continue
 			}
 			collectorNodeZone, exist := k8sNode.ObjectMeta.Labels[v1.LabelTopologyZone]
 			if !exist {
-				fmt.Printf("succeeded to find the collector node %s for collector %s in the cluster but it doesn't support zone awareness\n", collectorNodeName, collectorName)
+				fmt.Printf("succeeded to find the collector node %q for collector %q in the cluster but it doesn't support zone awareness\n", collectorNodeName, collectorName)
 				continue
 			}
-			collectorZonedNode = CollectorZonedNode{
-				ZonedNode: ZonedNode{
-					NodeName: collectorNodeName,
-					Zone:     collectorNodeZone,
+			node = collectorZonedNode{
+				zonedNode: zonedNode{
+					nodeName: collectorNodeName,
+					zone:     collectorNodeZone,
 				},
 				collector: collectorName,
 			}
-			err = s.collectorToZonedNode.Add(collectorZonedNode)
+			err = s.collectorToZonedNode.Add(node)
 			if err != nil {
-				fmt.Printf("error adding a cache for the node and zone information that relates to collector %s: %s \n", collectorName, err)
+				fmt.Printf("error adding a cache for the node and zone information that relates to collector %q: %s \n", collectorName, err)
 			}
 		}
-		collectorsByZone[collectorZonedNode.(CollectorZonedNode).ZonedNode.Zone] = append(collectorsByZone[collectorZonedNode.(CollectorZonedNode).ZonedNode.Zone], collectorName)
+		collectorsByZone[node.(collectorZonedNode).zonedNode.zone] = append(collectorsByZone[node.(collectorZonedNode).zonedNode.zone], collectorName)
 	}
 
 	var members []consistent.Member
@@ -172,14 +170,18 @@ func (s *perZoneStrategy) GetName() string {
 
 func (s *perZoneStrategy) SetFallbackStrategy(fallbackStrategy Strategy) {}
 
+func (s *perZoneStrategy) SetKubeClient(kubeClient kubernetes.Interface) {
+	s.kubeClient = kubeClient
+}
+
 func (s *perZoneStrategy) retrieveK8sNode(ctx context.Context, nodeName string) (*v1.Node, error) {
 	var node *v1.Node
 	var err error
-	if node, err = s.k8sClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{}); err != nil {
+	if node, err = s.kubeClient.CoreV1().Nodes().Get(ctx, nodeName, metav1.GetOptions{}); err != nil {
 		if errors.IsNotFound(err) {
-			return nil, fmt.Errorf("could not find the node %s in the cluster\n", nodeName)
+			return nil, fmt.Errorf("could not find the node %q in the cluster\n", nodeName)
 		}
-		return nil, fmt.Errorf("error when finding the node %s in the cluster, see error %s\n", nodeName, err)
+		return nil, fmt.Errorf("error when finding the node %q in the cluster, see error %s\n", nodeName, err)
 	}
 	return node, nil
 }
