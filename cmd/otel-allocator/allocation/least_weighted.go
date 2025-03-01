@@ -4,8 +4,9 @@
 package allocation
 
 import (
-	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 )
 
 const leastWeightedStrategyName = "least-weighted"

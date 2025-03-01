@@ -5,11 +5,11 @@ package allocation
 
 import (
 	"errors"
-	"k8s.io/client-go/kubernetes"
 	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/prometheus/client_golang/prometheus"
+	"k8s.io/client-go/kubernetes"
 
 	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/diff"
 	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"

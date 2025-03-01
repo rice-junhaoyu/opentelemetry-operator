@@ -5,12 +5,14 @@ package allocation
 
 import (
 	"fmt"
+
 	"github.com/buraksezer/consistent"
 	"github.com/go-logr/logr"
-	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 )
 
 type AllocatorProvider func(log logr.Logger, opts ...Option) Allocator

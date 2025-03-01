@@ -5,15 +5,16 @@ package allocation
 
 import (
 	"fmt"
-	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
+	"testing"
+
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
-	"testing"
-
 	logf "sigs.k8s.io/controller-runtime/pkg/log"
+
+	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 )
 
 var loggerPerZone = logf.Log.WithName("unit-tests")
@@ -120,7 +121,7 @@ func TestAllocationPerZone(t *testing.T) {
 	}
 }
 
-// Test with no collector in a specific zone
+// Test with no collector in a specific zone.
 func TestTargetsWithZoneDoesNotHaveCollectors(t *testing.T) {
 	kubeClient := fake.NewSimpleClientset(
 		&corev1.Node{

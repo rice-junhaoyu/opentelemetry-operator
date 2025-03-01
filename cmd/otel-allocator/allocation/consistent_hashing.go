@@ -5,6 +5,7 @@ package allocation
 
 import (
 	"fmt"
+
 	"github.com/buraksezer/consistent"
 	"github.com/cespare/xxhash/v2"
 	"k8s.io/client-go/kubernetes"

@@ -6,14 +6,16 @@ package allocation
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"github.com/buraksezer/consistent"
-	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/cache"
-	"time"
+
+	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 )
 
 const perZoneStrategyName = "per-zone"
@@ -81,10 +83,10 @@ func (s *perZoneStrategy) GetCollectorForTarget(collectors map[string]*Collector
 	if !exist || node.(targetZonedNode).zonedNode.nodeName != item.GetNodeName() {
 		k8sNode, err := s.retrieveK8sNode(ctx, targetNodeName)
 		if err != nil {
-			return nil, fmt.Errorf("err retrieving k8s node %q for target %q: %s\n", item.GetNodeName(), targetUrl, err)
+			return nil, fmt.Errorf("err retrieving k8s node %q for target %q: %w\n", item.GetNodeName(), targetUrl, err)
 		}
-		targetNodeZone, exist := k8sNode.ObjectMeta.Labels[v1.LabelTopologyZone]
-		if !exist {
+		targetNodeZone, azLabelExist := k8sNode.ObjectMeta.Labels[v1.LabelTopologyZone]
+		if !azLabelExist {
 			return nil, fmt.Errorf("succeeded to find the target node %s in the cluster but it doesn't support zone awareness", targetNodeName)
 		}
 		node = targetZonedNode{
@@ -181,7 +183,7 @@ func (s *perZoneStrategy) retrieveK8sNode(ctx context.Context, nodeName string) 
 		if errors.IsNotFound(err) {
 			return nil, fmt.Errorf("could not find the node %q in the cluster\n", nodeName)
 		}
-		return nil, fmt.Errorf("error when finding the node %q in the cluster, see error %s\n", nodeName, err)
+		return nil, fmt.Errorf("error when finding the node %q in the cluster, see error %w\n", nodeName, err)
 	}
 	return node, nil
 }

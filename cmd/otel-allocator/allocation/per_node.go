@@ -5,8 +5,10 @@ package allocation
 
 import (
 	"fmt"
-	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
+
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/open-telemetry/opentelemetry-operator/cmd/otel-allocator/target"
 )
 
 const perNodeStrategyName = "per-node"
